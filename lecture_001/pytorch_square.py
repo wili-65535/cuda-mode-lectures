@@ -3,9 +3,8 @@ import torch
 a = torch.tensor([1., 2., 3.])
 
 print(torch.square(a))
-print(a**2)
+print(a ** 2)
 print(a * a)
-
 
 def time_pytorch_function(func, input):
     # CUDA IS ASYNC so can't use python time module
@@ -22,17 +21,13 @@ def time_pytorch_function(func, input):
     torch.cuda.synchronize()
     return start.elapsed_time(end)
 
-
 b = torch.randn(10000, 10000).cuda()
-
 
 def square_2(a):
     return a * a
 
-
 def square_3(a):
-    return a**2
-
+    return a ** 2
 
 time_pytorch_function(torch.square, b)
 time_pytorch_function(square_2, b)

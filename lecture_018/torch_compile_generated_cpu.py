@@ -68,7 +68,6 @@ extern "C" void kernel(float* in_out_ptr0,
 async_compile.wait(globals())
 del async_compile
 
-
 def call(args):
     primals_1, primals_2, primals_3, primals_4, primals_5, primals_6, primals_7, primals_8, primals_9 = args
     args.clear()
@@ -83,12 +82,7 @@ def call(args):
     assert_size_stride(primals_9, (7, 16), (16, 1))
     buf0 = empty((7, 8), device='cpu', dtype=torch.float32)
     # Source Nodes: [getattr_l__self___layers___0___linear], Original ATen: [aten.addmm]
-    extern_kernels.addmm(reinterpret_tensor(primals_6, (7, 8), (0, 1), 0),
-                         primals_9,
-                         reinterpret_tensor(primals_5, (16, 8), (1, 16), 0),
-                         alpha=1,
-                         beta=1,
-                         out=buf0)
+    extern_kernels.addmm(reinterpret_tensor(primals_6, (7, 8), (0, 1), 0), primals_9, reinterpret_tensor(primals_5, (16, 8), (1, 16), 0), alpha=1, beta=1, out=buf0)
     del primals_5
     del primals_6
     buf1 = empty((7, 5), device='cpu', dtype=torch.float32)
@@ -100,17 +94,11 @@ def call(args):
     extern_kernels.mm(buf1, primals_2, out=buf2)
     buf3 = buf0
     del buf0  # reuse
-    cpp_fused_add_mul_relu_0(c_void_p(buf3.data_ptr()),
-                             c_void_p(buf2.data_ptr()))
+    cpp_fused_add_mul_relu_0(c_void_p(buf3.data_ptr()), c_void_p(buf2.data_ptr()))
     del buf2
     buf4 = empty((7, 4), device='cpu', dtype=torch.float32)
     # Source Nodes: [getattr_l__self___layers___2___linear], Original ATen: [aten.addmm]
-    extern_kernels.addmm(reinterpret_tensor(primals_8, (7, 4), (0, 1), 0),
-                         buf3,
-                         reinterpret_tensor(primals_7, (8, 4), (1, 8), 0),
-                         alpha=1,
-                         beta=1,
-                         out=buf4)
+    extern_kernels.addmm(reinterpret_tensor(primals_8, (7, 4), (0, 1), 0), buf3, reinterpret_tensor(primals_7, (8, 4), (1, 8), 0), alpha=1, beta=1, out=buf4)
     del primals_8
     buf5 = empty((7, 5), device='cpu', dtype=torch.float32)
     # Source Nodes: [matmul_2], Original ATen: [aten.mm]
@@ -120,8 +108,7 @@ def call(args):
     extern_kernels.mm(buf5, primals_4, out=buf6)
     buf7 = buf4
     del buf4  # reuse
-    cpp_fused_add_mul_sigmoid_1(c_void_p(buf7.data_ptr()),
-                                c_void_p(buf6.data_ptr()))
+    cpp_fused_add_mul_sigmoid_1(c_void_p(buf7.data_ptr()), c_void_p(buf6.data_ptr()))
     return (
         buf7,
         primals_9,
@@ -135,31 +122,20 @@ def call(args):
         reinterpret_tensor(primals_2, (8, 5), (1, 8), 0),
     )
 
-
 def benchmark_compiled_module(times=10, repeat=10):
     from torch._dynamo.testing import rand_strided
     from torch._inductor.utils import print_performance
-    primals_1 = rand_strided((16, 5), (5, 1),
-                             device='cpu',
-                             dtype=torch.float32)
+    primals_1 = rand_strided((16, 5), (5, 1), device='cpu', dtype=torch.float32)
     primals_2 = rand_strided((5, 8), (8, 1), device='cpu', dtype=torch.float32)
     primals_3 = rand_strided((8, 5), (5, 1), device='cpu', dtype=torch.float32)
     primals_4 = rand_strided((5, 4), (4, 1), device='cpu', dtype=torch.float32)
-    primals_5 = rand_strided((8, 16), (16, 1),
-                             device='cpu',
-                             dtype=torch.float32)
+    primals_5 = rand_strided((8, 16), (16, 1), device='cpu', dtype=torch.float32)
     primals_6 = rand_strided((8, ), (1, ), device='cpu', dtype=torch.float32)
     primals_7 = rand_strided((4, 8), (8, 1), device='cpu', dtype=torch.float32)
     primals_8 = rand_strided((4, ), (1, ), device='cpu', dtype=torch.float32)
-    primals_9 = rand_strided((7, 16), (16, 1),
-                             device='cpu',
-                             dtype=torch.float32)
-    fn = lambda: call([
-        primals_1, primals_2, primals_3, primals_4, primals_5, primals_6,
-        primals_7, primals_8, primals_9
-    ])
+    primals_9 = rand_strided((7, 16), (16, 1), device='cpu', dtype=torch.float32)
+    fn = lambda: call([primals_1, primals_2, primals_3, primals_4, primals_5, primals_6, primals_7, primals_8, primals_9])
     return print_performance(fn, times=times, repeat=repeat)
-
 
 if __name__ == "__main__":
     from torch._inductor.wrapper_benchmark import compiled_module_main

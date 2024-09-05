@@ -1,6 +1,5 @@
 from numba import cuda
 
-
 # CUDA kernel
 @cuda.jit
 def square_matrix_kernel(matrix, result):
@@ -10,8 +9,7 @@ def square_matrix_kernel(matrix, result):
     # Check if the thread's indices are within the bounds of the matrix
     if row < matrix.shape[0] and col < matrix.shape[1]:
         # Perform the square operation
-        result[row, col] = matrix[row, col]**2
-
+        result[row, col] = matrix[row, col] ** 2
 
 # Example usage
 import numpy as np

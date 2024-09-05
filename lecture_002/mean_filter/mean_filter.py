@@ -4,7 +4,6 @@ import torch
 from torch.utils.cpp_extension import load_inline
 from torchvision.io import read_image, write_png
 
-
 def compile_extension():
     cuda_source = Path("mean_filter_kernel.cu").read_text()
     cpp_source = "torch::Tensor mean_filter(torch::Tensor image, int radius);"
@@ -21,7 +20,6 @@ def compile_extension():
     )
     return rgb_to_grayscale_extension
 
-
 def main():
     """
     Use torch cpp inline extension function to compile the kernel in mean_filter_kernel.cu.
@@ -37,7 +35,6 @@ def main():
 
     print("Output image:", y.shape, y.dtype)
     write_png(y.cpu(), "output.png")
-
 
 if __name__ == "__main__":
     main()

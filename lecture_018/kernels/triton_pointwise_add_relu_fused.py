@@ -4,7 +4,6 @@ import triton.language as tl
 from torch._inductor import triton_helpers
 from torch._inductor.triton_heuristics import grid
 
-
 @triton.jit
 def pointwise_add_relu_fusion_512(in_out_ptr0, in_ptr0, XBLOCK: tl.constexpr):
     xnumel = 65536
@@ -21,7 +20,6 @@ def pointwise_add_relu_fusion_512(in_out_ptr0, in_ptr0, XBLOCK: tl.constexpr):
     tmp2 = tmp0 + tmp1
     tmp3 = triton_helpers.maximum(0, tmp2)
     tl.store(in_out_ptr0 + (x2), tmp3, None)
-
 
 if __name__ == '__main__':
     torch.cuda.set_device(0)  # no-op to ensure context

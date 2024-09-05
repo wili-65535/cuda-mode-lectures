@@ -4,7 +4,6 @@ def reduce(data, identity, op):
         result = op(result, element)
     return result
 
-
 # Example usage:
 
 # Summation

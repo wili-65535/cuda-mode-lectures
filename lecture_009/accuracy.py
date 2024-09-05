@@ -1,11 +1,9 @@
 import torch
 
-large_value = torch.tensor(
-    [1000.0], dtype=torch.float32)  # Using float32 for initial value
+large_value = torch.tensor([1000.0], dtype=torch.float32)  # Using float32 for initial value
 
 # Define a smaller value that is significant for float32 but not for float16
-small_value = torch.tensor([1e-3],
-                           dtype=torch.float32)  # Small value in float32
+small_value = torch.tensor([1e-3], dtype=torch.float32)  # Small value in float32
 
 # Add small value to large value in float32
 result_float32 = large_value + small_value

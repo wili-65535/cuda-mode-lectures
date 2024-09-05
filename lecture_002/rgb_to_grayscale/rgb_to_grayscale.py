@@ -4,7 +4,6 @@ import torch
 from torch.utils.cpp_extension import load_inline
 from torchvision.io import read_image, write_png
 
-
 def compile_extension():
     cuda_source = Path("grayscale_kernel.cu").read_text()
     cpp_source = "torch::Tensor rgb_to_grayscale(torch::Tensor image);"
@@ -20,7 +19,6 @@ def compile_extension():
         # build_directory='./cuda_build',
     )
     return rgb_to_grayscale_extension
-
 
 def main():
     """
@@ -40,7 +38,6 @@ def main():
     print("Output image:", y.shape, y.dtype)
     print("mean", y.float().mean())
     write_png(y.permute(2, 0, 1).cpu(), "output.png")
-
 
 if __name__ == "__main__":
     main()

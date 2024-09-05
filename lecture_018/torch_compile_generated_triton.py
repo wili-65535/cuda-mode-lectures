@@ -15,8 +15,7 @@ async_compile = AsyncCompile()
 # add => add
 # l__self___layers_1 => relu
 # x => mul
-triton_poi_fused_add_mul_relu_0 = async_compile.triton(
-    'triton_', '''
+triton_poi_fused_add_mul_relu_0 = async_compile.triton('triton_', '''
 import triton
 import triton.language as tl
 from torch._inductor.ir import ReductionHint
@@ -59,8 +58,7 @@ from torch._inductor.triton_heuristics import grid
 # add_1 => add_1
 # l__self___layers_3 => sigmoid
 # x_1 => mul_1
-triton_poi_fused_add_mul_sigmoid_1 = async_compile.triton(
-    'triton_', '''
+triton_poi_fused_add_mul_sigmoid_1 = async_compile.triton('triton_', '''
 import triton
 import triton.language as tl
 from torch._inductor.ir import ReductionHint
@@ -98,7 +96,6 @@ def triton_(in_out_ptr0, in_ptr0, in_ptr1, xnumel, XBLOCK : tl.constexpr):
 async_compile.wait(globals())
 del async_compile
 
-
 def call(args):
     primals_1, primals_2, primals_3, primals_4, primals_5, primals_6, primals_7, primals_8, primals_9 = args
     args.clear()
@@ -116,9 +113,7 @@ def call(args):
         buf0 = empty((7, 8), device='cuda', dtype=torch.float32)
         # Source Nodes: [], Original ATen: []
         # X1 <- X @ W1 [7 X 8]
-        extern_kernels.mm(primals_9,
-                          reinterpret_tensor(primals_1, (16, 8), (1, 16), 0),
-                          out=buf0)
+        extern_kernels.mm(primals_9, reinterpret_tensor(primals_1, (16, 8), (1, 16), 0), out=buf0)
         del primals_1
         buf1 = empty((7, 5), device='cuda', dtype=torch.float32)
         # Source Nodes: [matmul], Original ATen: [aten.mm]
@@ -134,19 +129,12 @@ def call(args):
         # Source Nodes: [add, l__self___layers_1, x], Original ATen: [aten.add, aten.mul, aten.relu]
         stream0 = get_cuda_stream(0)
         # out1 = relu(add(xa2, X1)) [7 X 8]
-        triton_poi_fused_add_mul_relu_0.run(buf3,
-                                            primals_2,
-                                            buf2,
-                                            56,
-                                            grid=grid(56),
-                                            stream=stream0)
+        triton_poi_fused_add_mul_relu_0.run(buf3, primals_2, buf2, 56, grid=grid(56), stream=stream0)
         del buf2
         del primals_2
         buf4 = empty((7, 4), device='cuda', dtype=torch.float32)
         # Source Nodes: [], Original ATen: []
-        extern_kernels.mm(buf3,
-                          reinterpret_tensor(primals_3, (8, 4), (1, 8), 0),
-                          out=buf4)
+        extern_kernels.mm(buf3, reinterpret_tensor(primals_3, (8, 4), (1, 8), 0), out=buf4)
         buf5 = empty((7, 5), device='cuda', dtype=torch.float32)
         # Source Nodes: [matmul_2], Original ATen: [aten.mm]
         extern_kernels.mm(buf3, primals_7, out=buf5)
@@ -156,12 +144,7 @@ def call(args):
         buf7 = buf4
         del buf4  # reuse
         # Source Nodes: [add_1, l__self___layers_3, x_1], Original ATen: [aten.add, aten.mul, aten.sigmoid]
-        triton_poi_fused_add_mul_sigmoid_1.run(buf7,
-                                               primals_4,
-                                               buf6,
-                                               28,
-                                               grid=grid(28),
-                                               stream=stream0)
+        triton_poi_fused_add_mul_sigmoid_1.run(buf7, primals_4, buf6, 28, grid=grid(28), stream=stream0)
         del buf6
         del primals_4
         return (
@@ -177,43 +160,20 @@ def call(args):
             reinterpret_tensor(primals_6, (8, 5), (1, 8), 0),
         )
 
-
 def benchmark_compiled_module(times=10, repeat=10):
     from torch._dynamo.testing import rand_strided
     from torch._inductor.utils import print_performance
-    primals_1 = rand_strided((8, 16), (16, 1),
-                             device='cuda:0',
-                             dtype=torch.float32)
-    primals_2 = rand_strided((8, ), (1, ),
-                             device='cuda:0',
-                             dtype=torch.float32)
-    primals_3 = rand_strided((4, 8), (8, 1),
-                             device='cuda:0',
-                             dtype=torch.float32)
-    primals_4 = rand_strided((4, ), (1, ),
-                             device='cuda:0',
-                             dtype=torch.float32)
-    primals_5 = rand_strided((16, 5), (5, 1),
-                             device='cuda:0',
-                             dtype=torch.float32)
-    primals_6 = rand_strided((5, 8), (8, 1),
-                             device='cuda:0',
-                             dtype=torch.float32)
-    primals_7 = rand_strided((8, 5), (5, 1),
-                             device='cuda:0',
-                             dtype=torch.float32)
-    primals_8 = rand_strided((5, 4), (4, 1),
-                             device='cuda:0',
-                             dtype=torch.float32)
-    primals_9 = rand_strided((7, 16), (16, 1),
-                             device='cuda:0',
-                             dtype=torch.float32)
-    fn = lambda: call([
-        primals_1, primals_2, primals_3, primals_4, primals_5, primals_6,
-        primals_7, primals_8, primals_9
-    ])
+    primals_1 = rand_strided((8, 16), (16, 1), device='cuda:0', dtype=torch.float32)
+    primals_2 = rand_strided((8, ), (1, ), device='cuda:0', dtype=torch.float32)
+    primals_3 = rand_strided((4, 8), (8, 1), device='cuda:0', dtype=torch.float32)
+    primals_4 = rand_strided((4, ), (1, ), device='cuda:0', dtype=torch.float32)
+    primals_5 = rand_strided((16, 5), (5, 1), device='cuda:0', dtype=torch.float32)
+    primals_6 = rand_strided((5, 8), (8, 1), device='cuda:0', dtype=torch.float32)
+    primals_7 = rand_strided((8, 5), (5, 1), device='cuda:0', dtype=torch.float32)
+    primals_8 = rand_strided((5, 4), (4, 1), device='cuda:0', dtype=torch.float32)
+    primals_9 = rand_strided((7, 16), (16, 1), device='cuda:0', dtype=torch.float32)
+    fn = lambda: call([primals_1, primals_2, primals_3, primals_4, primals_5, primals_6, primals_7, primals_8, primals_9])
     return print_performance(fn, times=times, repeat=repeat)
-
 
 if __name__ == "__main__":
     from torch._inductor.wrapper_benchmark import compiled_module_main

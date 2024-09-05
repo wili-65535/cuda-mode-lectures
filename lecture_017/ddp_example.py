@@ -9,7 +9,6 @@ from torch.profiler import profile
 
 SIZE = 4000
 
-
 class ToyModel(nn.Module):
 
     def __init__(self):
@@ -21,7 +20,6 @@ class ToyModel(nn.Module):
 
     def forward(self, x):
         return self.net3(self.relu(self.net2(self.relu(self.net1(x)))))
-
 
 def demo_basic():
     dist.init_process_group("nccl")
@@ -35,11 +33,11 @@ def demo_basic():
     optimizer = optim.SGD(ddp_model.parameters(), lr=0.001)
 
     with profile(
-            record_shapes=True,
-            activities=[
-                torch.profiler.ProfilerActivity.CPU,
-                torch.profiler.ProfilerActivity.CUDA,
-            ],
+        record_shapes=True,
+        activities=[
+            torch.profiler.ProfilerActivity.CPU,
+            torch.profiler.ProfilerActivity.CUDA,
+        ],
     ) as prof:
         for i in range(10):
             optimizer.zero_grad()
@@ -49,7 +47,6 @@ def demo_basic():
             optimizer.step()
     if rank == 0:
         prof.export_chrome_trace("trace_ddp_example.json")
-
 
 if __name__ == "__main__":
     demo_basic()

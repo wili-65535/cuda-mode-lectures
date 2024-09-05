@@ -6,7 +6,6 @@ import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.profiler import profile
 
-
 class ToyModel(nn.Module):
 
     def __init__(self):
@@ -15,7 +14,6 @@ class ToyModel(nn.Module):
 
     def forward(self, x):
         return self.w * 7.0 * x
-
 
 def demo_basic():
     dist.init_process_group("nccl")
@@ -28,9 +26,7 @@ def demo_basic():
     with profile() as prof:
         x = torch.tensor(dist.get_rank(), dtype=torch.float)
         y = ddp_model(x)
-        print(
-            f"rank {rank}: y=w*7*x: {y.item()}={ddp_model.module.w.item()}*7*{x.item()}"
-        )
+        print(f"rank {rank}: y=w*7*x: {y.item()}={ddp_model.module.w.item()}*7*{x.item()}")
         print(f"rank {rank}: dy/dw=7*x: {7.0*x.item()}")
         y.backward()
         print(f"rank {rank}: reduced dy/dw: {ddp_model.module.w.grad.item()}")
@@ -38,7 +34,6 @@ def demo_basic():
         print("exporting trace")
         prof.export_chrome_trace("trace_ddp_simple.json")
     dist.destroy_process_group()
-
 
 if __name__ == "__main__":
     print("Running")
