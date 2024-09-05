@@ -1,22 +1,23 @@
 import json
 import time
 from dataclasses import dataclass
-from typing import Mapping, List, Dict, Union
+from typing import Dict, List, Mapping, Union
 
 import click
 import torch
 import torch._dynamo
-from loguru import logger
-from torch import nn, Tensor
-from torch.utils.data import DataLoader
-
 from criteo_dataset import CriteoParquetDataset
+from loguru import logger
+from torch import Tensor, nn
+from torch.utils.data import DataLoader
 
 torch._dynamo.reset()
 
 
 class MLP(nn.Module):
-    def __init__(self, input_size: int, hidden_sizes: List[int], output_size: int):
+
+    def __init__(self, input_size: int, hidden_sizes: List[int],
+                 output_size: int):
         super(MLP, self).__init__()
         fc_layers = []
         for i, hidden_size in enumerate(hidden_sizes):
@@ -33,11 +34,10 @@ class MLP(nn.Module):
 
 
 class DenseArch(nn.Module):
-    def __init__(self,
-                 dense_feature_count: int,
-                 dense_hidden_layers_sizes: List[int],
-                 output_size: int,
-                 *args, **kwargs) -> None:
+
+    def __init__(self, dense_feature_count: int,
+                 dense_hidden_layers_sizes: List[int], output_size: int, *args,
+                 **kwargs) -> None:
         super(DenseArch, self).__init__(*args, **kwargs)
         self.mlp = MLP(input_size=dense_feature_count,
                        hidden_sizes=dense_hidden_layers_sizes,
@@ -49,6 +49,7 @@ class DenseArch(nn.Module):
 
 
 class SparseFeatureLayer(nn.Module):
+
     def __init__(self, cardinality: int, embedding_size: int):
         super(SparseFeatureLayer, self).__init__()
         self.embedding = nn.Embedding(cardinality, embedding_size)
@@ -60,17 +61,22 @@ class SparseFeatureLayer(nn.Module):
 
 
 class SparseArch(nn.Module):
-    def __init__(self, metadata: Dict[str, Union[int, List[int], Dict[str, int]]],
+
+    def __init__(self,
+                 metadata: Dict[str, Union[int, List[int], Dict[str, int]]],
                  embedding_sizes: Mapping[str, int],
                  device: str = "cpu",
-                 *args, **kwargs) -> None:
+                 *args,
+                 **kwargs) -> None:
         super(SparseArch, self).__init__(*args, **kwargs)
         self.num_sparse_features = len(metadata)
-        self._modulus_hash_sizes = [m["cardinality"] for m in metadata.values()]
+        self._modulus_hash_sizes = [
+            m["cardinality"] for m in metadata.values()
+        ]
         self.sparse_layers = nn.ModuleList([
             SparseFeatureLayer(cardinality=self._modulus_hash_sizes[i],
-                               embedding_size=embedding_sizes[feature_name]) for i, feature_name in
-            enumerate(metadata.keys())
+                               embedding_size=embedding_sizes[feature_name])
+            for i, feature_name in enumerate(metadata.keys())
         ])
 
         # Create mapping for each sparse feature
@@ -78,12 +84,17 @@ class SparseArch(nn.Module):
         # self.mapping = [torch.tensor(metadata[f"SPARSE_{i}"]["tokenizer_values"]) for i in
         #                 range(self.num_sparse_features)]
         # Slide 2: use tensor on device
-        self.mapping = [torch.tensor(metadata[f"SPARSE_{i}"]["tokenizer_values"], device=device) for i in
-                        range(self.num_sparse_features)]
-        self.cardinality_tensor = torch.tensor(self._modulus_hash_sizes).to(device)
+        self.mapping = [
+            torch.tensor(metadata[f"SPARSE_{i}"]["tokenizer_values"],
+                         device=device)
+            for i in range(self.num_sparse_features)
+        ]
+        self.cardinality_tensor = torch.tensor(
+            self._modulus_hash_sizes).to(device)
 
     @staticmethod
-    def index_hash(tensor: torch.Tensor, tokenizer_values: Union[List[int], torch.Tensor]):
+    def index_hash(tensor: torch.Tensor,
+                   tokenizer_values: Union[List[int], torch.Tensor]):
         # tensor = tensor.reshape(-1, 1)
         # tokenizers = torch.tensor(tokenizer_values).reshape(1, -1)
         tensor = tensor.view(-1, 1)
@@ -106,9 +117,13 @@ class SparseArch(nn.Module):
             output_values.append(sparse_out)
         return output_values
 
-    def _forward_modulus_hash(self, inputs: torch.Tensor) -> List[torch.Tensor]:
+    def _forward_modulus_hash(self,
+                              inputs: torch.Tensor) -> List[torch.Tensor]:
         sparse_hashed = self.modulus_hash(inputs, self.cardinality_tensor)
-        return [sparse_layer(sparse_hashed[:, i]) for i, sparse_layer in enumerate(self.sparse_layers)]
+        return [
+            sparse_layer(sparse_hashed[:, i])
+            for i, sparse_layer in enumerate(self.sparse_layers)
+        ]
 
     def forward(self, inputs: torch.Tensor) -> List[torch.Tensor]:
         # slide 1:
@@ -123,8 +138,9 @@ class DenseSparseInteractionLayer(nn.Module):
     def __init__(self, interaction_type: str = "dot"):
         super(DenseSparseInteractionLayer, self).__init__()
         if interaction_type not in self.SUPPORTED_INTERACTION_TYPES:
-            raise ValueError(f"Interaction type {interaction_type} not supported. "
-                             f"Supported types are {self.SUPPORTED_INTERACTION_TYPES}")
+            raise ValueError(
+                f"Interaction type {interaction_type} not supported. "
+                f"Supported types are {self.SUPPORTED_INTERACTION_TYPES}")
         self.interaction_type = interaction_type
 
     def forward(self, dense_out: torch.Tensor,
@@ -139,14 +155,14 @@ class DenseSparseInteractionLayer(nn.Module):
 
 
 class PredictionLayer(nn.Module):
-    def __init__(self,
-                 dense_out_size: int,
-                 sparse_out_sizes: List[int],
+
+    def __init__(self, dense_out_size: int, sparse_out_sizes: List[int],
                  hidden_sizes: List[int], *wargs, **kwargs):
         super(PredictionLayer, self).__init__(*wargs, **kwargs)
         concat_size = sum(sparse_out_sizes) + dense_out_size
         self.mlp = MLP(input_size=concat_size * concat_size,
-                       hidden_sizes=hidden_sizes, output_size=1)
+                       hidden_sizes=hidden_sizes,
+                       output_size=1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
@@ -165,25 +181,28 @@ class Parameters:
 
 
 class DLRM(nn.Module):
-    def __init__(self, metadata: Dict[str, Union[int, List[int]]],
+
+    def __init__(self,
+                 metadata: Dict[str, Union[int, List[int]]],
                  parameters: Parameters,
                  device: str = "cpu"):
         super(DLRM, self).__init__()
         self.dense_layer = DenseArch(
             dense_feature_count=parameters.dense_input_feature_size,
-            dense_hidden_layers_sizes=parameters.dense_mlp[
-                "hidden_layer_sizes"],
+            dense_hidden_layers_sizes=parameters.
+            dense_mlp["hidden_layer_sizes"],
             output_size=parameters.dense_mlp["output_size"])
         self.sparse_layer = SparseArch(
             metadata=metadata,
             embedding_sizes=parameters.sparse_embedding_sizes,
-            device=device
-        )
+            device=device)
         self.interaction_layer = DenseSparseInteractionLayer()
         self.prediction_layer = PredictionLayer(
             dense_out_size=parameters.dense_mlp["output_size"],
-            sparse_out_sizes=[parameters.sparse_embedding_sizes[f"SPARSE_{i}"] for i in
-                              range(len(parameters.sparse_embedding_sizes))],
+            sparse_out_sizes=[
+                parameters.sparse_embedding_sizes[f"SPARSE_{i}"]
+                for i in range(len(parameters.sparse_embedding_sizes))
+            ],
             hidden_sizes=parameters.prediction_hidden_sizes,
         )
 
@@ -203,9 +222,12 @@ def read_metadata(metadata_path):
 
 @click.command()
 @click.option('--file_path',
-              type=click.Path(exists=True), help='Path to the parquet file', default="data/sample_criteo_data.parquet")
+              type=click.Path(exists=True),
+              help='Path to the parquet file',
+              default="data/sample_criteo_data.parquet")
 @click.option('--metadata_path',
-              type=click.Path(exists=True), help='Path to the metadata file',
+              type=click.Path(exists=True),
+              help='Path to the metadata file',
               default="data/sample_criteo_metadata.json")
 def dry_run_with_data(file_path, metadata_path):
     """
@@ -248,7 +270,8 @@ def dry_run_with_data(file_path, metadata_path):
     logger.info("Dense sparse interaction out size: {}".format(ds_out.size()))
 
     prediction_layer = PredictionLayer(dense_out_size=dense_mlp_out_size,
-                                       sparse_out_sizes=[sparse_mlp_out_size] * len(metadata),
+                                       sparse_out_sizes=[sparse_mlp_out_size] *
+                                       len(metadata),
                                        hidden_sizes=[16])
     # prediction_layer_optim = torch.compile(prediction_layer)
     pred_out = prediction_layer(ds_out)
@@ -258,17 +281,14 @@ def dry_run_with_data(file_path, metadata_path):
     # TODO dry run the DLRM model
     parameters = Parameters(
         dense_input_feature_size=13,
-        sparse_embedding_sizes={
-            "SPARSE_{}".format(i): 16 for i in range(26)
-        },
+        sparse_embedding_sizes={"SPARSE_{}".format(i): 16
+                                for i in range(26)},
         dense_mlp={
             "hidden_layer_sizes": [16],
             "output_size": 16
         },
         prediction_hidden_sizes=[16],
-        use_modulus_hash=True
-
-    )
+        use_modulus_hash=True)
     import torch._dynamo
     torch._dynamo.reset()
     torch._dynamo.config.verbose = True
@@ -281,7 +301,8 @@ def dry_run_with_data(file_path, metadata_path):
     start = time.time()
     prediction = dlrm_optim(dense, sparse)
     logger.info("DLRM prediction size: {}".format(prediction.size()))
-    logger.info("[COMPILED] Time taken for prediction: {}".format(time.time() - start))
+    logger.info("[COMPILED] Time taken for prediction: {}".format(time.time() -
+                                                                  start))
 
     torch.onnx.export(dlrm, (dense, sparse), './data/dlrm.onnx')
 

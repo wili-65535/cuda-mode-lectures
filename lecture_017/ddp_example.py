@@ -3,15 +3,15 @@
 import torch
 import torch.distributed as dist
 import torch.nn as nn
-
+import torch.optim as optim
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.profiler import profile
-import torch.optim as optim
 
 SIZE = 4000
 
 
 class ToyModel(nn.Module):
+
     def __init__(self):
         super(ToyModel, self).__init__()
         self.net1 = nn.Linear(SIZE, SIZE)
@@ -35,11 +35,11 @@ def demo_basic():
     optimizer = optim.SGD(ddp_model.parameters(), lr=0.001)
 
     with profile(
-        record_shapes=True,
-        activities=[
-            torch.profiler.ProfilerActivity.CPU,
-            torch.profiler.ProfilerActivity.CUDA,
-        ],
+            record_shapes=True,
+            activities=[
+                torch.profiler.ProfilerActivity.CPU,
+                torch.profiler.ProfilerActivity.CUDA,
+            ],
     ) as prof:
         for i in range(10):
             optimizer.zero_grad()

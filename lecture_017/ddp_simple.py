@@ -3,12 +3,12 @@
 import torch
 import torch.distributed as dist
 import torch.nn as nn
-from torch.profiler import profile
-
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.profiler import profile
 
 
 class ToyModel(nn.Module):
+
     def __init__(self):
         super(ToyModel, self).__init__()
         self.w = nn.Parameter(torch.tensor(5.0))
@@ -28,7 +28,9 @@ def demo_basic():
     with profile() as prof:
         x = torch.tensor(dist.get_rank(), dtype=torch.float)
         y = ddp_model(x)
-        print(f"rank {rank}: y=w*7*x: {y.item()}={ddp_model.module.w.item()}*7*{x.item()}")
+        print(
+            f"rank {rank}: y=w*7*x: {y.item()}={ddp_model.module.w.item()}*7*{x.item()}"
+        )
         print(f"rank {rank}: dy/dw=7*x: {7.0*x.item()}")
         y.backward()
         print(f"rank {rank}: reduced dy/dw: {ddp_model.module.w.grad.item()}")

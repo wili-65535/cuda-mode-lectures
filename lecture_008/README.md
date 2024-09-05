@@ -2,4 +2,3 @@
 
 nvcc -o benchmark file.cu
 ncu benchmark
-

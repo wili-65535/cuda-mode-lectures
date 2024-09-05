@@ -1,16 +1,17 @@
-import torch
-import pandas as pd
 import click
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
+import pandas as pd
+import torch
 from loguru import logger
+from torch.utils.data import DataLoader, Dataset
 
 
 class CriteoParquetDataset(Dataset):
+
     def __init__(self, file_name: str):
         df = pd.read_parquet(file_name)
         self.total_rows = len(df)
-        self.label_tensor = torch.from_numpy(df["labels"].values).to(torch.float32)
+        self.label_tensor = torch.from_numpy(df["labels"].values).to(
+            torch.float32)
         dense_columns = [f for f in df.columns if f.startswith("DENSE")]
         sparse_columns = [f for f in df.columns if f.startswith("SPARSE")]
         self.dense_tensor = torch.from_numpy(df[dense_columns].values)
@@ -25,7 +26,8 @@ class CriteoParquetDataset(Dataset):
 
 
 @click.command()
-@click.option('--file_path', type=click.Path(exists=True),
+@click.option('--file_path',
+              type=click.Path(exists=True),
               help='Path to the parquet file')
 def process_file(file_path):
     """
@@ -40,9 +42,12 @@ def process_file(file_path):
         logger.info("Dense: {}".format(dense))
         logger.info("Sparse: {}".format(sparse))
 
-        logger.info("Labels size and dtype: {}, {}".format(labels.size(), labels.dtype))
-        logger.info("Dense size and dtype: {}, {}".format(dense.size(), dense.dtype))
-        logger.info("Sparse size and dtype: {}, {}".format(sparse.size(), sparse.dtype))
+        logger.info("Labels size and dtype: {}, {}".format(
+            labels.size(), labels.dtype))
+        logger.info("Dense size and dtype: {}, {}".format(
+            dense.size(), dense.dtype))
+        logger.info("Sparse size and dtype: {}, {}".format(
+            sparse.size(), sparse.dtype))
         break
 
 

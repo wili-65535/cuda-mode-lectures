@@ -1,11 +1,12 @@
-import triton
 import torch
+import triton
 import triton.language as tl
 from torch._inductor import triton_helpers
 from torch._inductor.triton_heuristics import grid
 
+
 @triton.jit
-def pointwise_add_relu_fusion_512(in_out_ptr0, in_ptr0, XBLOCK : tl.constexpr):
+def pointwise_add_relu_fusion_512(in_out_ptr0, in_ptr0, XBLOCK: tl.constexpr):
     xnumel = 65536
     xoffset = tl.program_id(0) * XBLOCK
     xindex = xoffset + tl.arange(0, XBLOCK)[:]
@@ -26,7 +27,7 @@ if __name__ == '__main__':
     torch.cuda.set_device(0)  # no-op to ensure context
     X = torch.ones(size=(128, 512), device='cuda')
     print(X[:3, :3])
-    Y = torch.ones(size=(512,), device='cuda')
+    Y = torch.ones(size=(512, ), device='cuda')
     print(Y[:3])
     eager_result = torch.maximum(X + Y, torch.tensor(0., device='cuda'))
     print(eager_result[:3, :3])

@@ -1,32 +1,38 @@
+import json
 import time
 import uuid
-from functools import partial
 
 import torch
-from torch import nn
-from torch.utils.data import DataLoader
-from loguru import logger
-import json
-
-from tqdm import tqdm
-
 from criteo_dataset import CriteoParquetDataset
-from model import DLRM, read_metadata, Parameters as ModelParameters
+from loguru import logger
+from model import DLRM
+from model import Parameters as ModelParameters
+from model import read_metadata
+from torch import nn
 from torch.profiler import profile
+from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 
 def trace_handler(prof: profile, results_dir: str):
     logger.info("\n" + prof.key_averages().table(
         sort_by="self_cuda_time_total", row_limit=-1))
-    prof.export_chrome_trace(f"/{results_dir}/test_trace_" + str(uuid.uuid4()) + ".json")
+    prof.export_chrome_trace(f"/{results_dir}/test_trace_" +
+                             str(uuid.uuid4()) + ".json")
 
 
 import click
 
+
 @click.command()
-@click.option('--config', default="model_hyperparameters_small.json", help='Model parameters filename')
-@click.option('--use_torch_compile', is_flag=True, default=False, help='Use torch.compile if set')
+@click.option('--config',
+              default="model_hyperparameters_small.json",
+              help='Model parameters filename')
+@click.option('--use_torch_compile',
+              is_flag=True,
+              default=False,
+              help='Use torch.compile if set')
 def main(config: str, use_torch_compile: bool):
     # # The flag below controls whether to allow TF32 on matmul. This flag defaults to False
     # # in PyTorch 1.12 and later.
@@ -49,7 +55,8 @@ def main(config: str, use_torch_compile: bool):
     logger.info("Loaded metadata")
 
     train_dataset = CriteoParquetDataset(hyperparameters['data_path']['train'])
-    valid_dataset = CriteoParquetDataset(hyperparameters['data_path']['validation'])
+    valid_dataset = CriteoParquetDataset(
+        hyperparameters['data_path']['validation'])
 
     logger.info("Loaded datasets")
 
@@ -69,7 +76,8 @@ def main(config: str, use_torch_compile: bool):
         model = torch.compile(dlrm, fullgraph=True, mode="max-autotune")
     else:
         model = dlrm
-    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparameters['learning_rate'])
+    optimizer = torch.optim.Adam(model.parameters(),
+                                 lr=hyperparameters['learning_rate'])
 
     # Binary Cross Entropy loss
     criterion = nn.BCELoss()
@@ -78,14 +86,17 @@ def main(config: str, use_torch_compile: bool):
     batch_size_valid = hyperparameters['batch_size']['validation']
 
     # DataLoader for your dataset
-    train_loader = iter(DataLoader(train_dataset, batch_size=batch_size_train, shuffle=True))
+    train_loader = iter(
+        DataLoader(train_dataset, batch_size=batch_size_train, shuffle=True))
     valid_loader = iter(
         DataLoader(valid_dataset, batch_size=batch_size_valid, shuffle=False))
 
     _, dense, sparse = next(train_loader)
     compile_start_time = time.time()
-    _ = model(dense.to(hyperparameters['device']), sparse.to(hyperparameters['device']))
-    logger.info("Compile Time taken: {:.2f}s".format(time.time() - compile_start_time))
+    _ = model(dense.to(hyperparameters['device']),
+              sparse.to(hyperparameters['device']))
+    logger.info("Compile Time taken: {:.2f}s".format(time.time() -
+                                                     compile_start_time))
 
     # Number of epochs
     num_epochs = hyperparameters['num_epochs']
@@ -105,19 +116,14 @@ def main(config: str, use_torch_compile: bool):
             torch.profiler.ProfilerActivity.CPU,
             torch.profiler.ProfilerActivity.CUDA,
         ],
-        schedule=torch.profiler.schedule(
-            wait=1,
-            warmup=1,
-            active=3,
-            repeat=1),
+        schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=1),
         # on_trace_ready=partial(trace_handler,
         #                        results_dir="./profiler_logs"),
-        on_trace_ready=torch.profiler.tensorboard_trace_handler(hyperparameters["tensorboard_dir"],
-                                                                worker_name=modifier),
+        on_trace_ready=torch.profiler.tensorboard_trace_handler(
+            hyperparameters["tensorboard_dir"], worker_name=modifier),
         record_shapes=True,
         profile_memory=True,
-        with_stack=True
-    )
+        with_stack=True)
     prof.start()
 
     # Training Loop
@@ -129,7 +135,8 @@ def main(config: str, use_torch_compile: bool):
         correct_predictions = 0
         total_predictions = 0
         model.train()
-        for batch_idx in tqdm(range(hyperparameters['batches_per_epoch']), ncols=80):
+        for batch_idx in tqdm(range(hyperparameters['batches_per_epoch']),
+                              ncols=80):
             labels, dense, sparse = next(train_loader)
             labels = labels.to(hyperparameters['device'])
             dense = dense.to(hyperparameters['device'])
@@ -146,17 +153,18 @@ def main(config: str, use_torch_compile: bool):
             # logger.info("Optimizer step done")
 
             # logger.info("--- Backward pass and optimization done")
-            train_loss = train_loss + (
-                    (loss.item() - train_loss) / (batch_idx + 1))
+            train_loss = train_loss + ((loss.item() - train_loss) /
+                                       (batch_idx + 1))
             # Convert outputs probabilities to predicted class (0 or 1)
             predicted = torch.sigmoid(outputs).data > 0.5
             # Update total and correct predictions
             total_predictions += labels.size(0)
             correct_predictions += (predicted == labels).sum().item()
-            index = (epoch * hyperparameters['batches_per_epoch'] + batch_idx) * batch_size_train
+            index = (epoch * hyperparameters['batches_per_epoch'] +
+                     batch_idx) * batch_size_train
             writer.add_scalar("Loss/train", train_loss, index)
-            writer.add_scalar("Accuracy/train", correct_predictions / total_predictions,
-                              index)
+            writer.add_scalar("Accuracy/train",
+                              correct_predictions / total_predictions, index)
             for name, t in timing_context.items():
                 writer.add_scalar(f"TrainingTime/{name}", t, index)
             prof.step()
@@ -170,7 +178,8 @@ def main(config: str, use_torch_compile: bool):
             total_predictions = 0
             correct_predictions = 0
             valid_loss = 0.0
-            for batch_idx in tqdm(range(hyperparameters['batches_per_epoch']), ncols=80):
+            for batch_idx in tqdm(range(hyperparameters['batches_per_epoch']),
+                                  ncols=80):
                 labels, dense, sparse = next(valid_loader)
                 # Move data to the appropriate device
                 labels = labels.to(hyperparameters['device'])
@@ -180,8 +189,8 @@ def main(config: str, use_torch_compile: bool):
                 # Forward pass
                 outputs = model(dense, sparse)
                 loss = criterion(outputs, labels)
-                valid_loss = valid_loss + (
-                        (loss.item() - valid_loss) / (batch_idx + 1))
+                valid_loss = valid_loss + ((loss.item() - valid_loss) /
+                                           (batch_idx + 1))
 
                 # Convert outputs probabilities to predicted class (0 or 1)
                 predicted = torch.sigmoid(outputs).data > 0.5
@@ -189,19 +198,16 @@ def main(config: str, use_torch_compile: bool):
                 total_predictions += labels.size(0)
                 correct_predictions += (predicted == labels).sum().item()
                 valid_accuracy = correct_predictions / total_predictions
-                index = (epoch * hyperparameters['batches_per_epoch'] + batch_idx) * batch_size_valid
-                writer.add_scalar("Loss/valid",
-                                  valid_loss,
-                                  index)
-                writer.add_scalar("Accuracy/valid",
-                                  valid_accuracy,
-                                  index)
+                index = (epoch * hyperparameters['batches_per_epoch'] +
+                         batch_idx) * batch_size_valid
+                writer.add_scalar("Loss/valid", valid_loss, index)
+                writer.add_scalar("Accuracy/valid", valid_accuracy, index)
                 for name, t in timing_context.items():
-                    writer.add_scalar(f"ValidationTime/{name}", t,
-                                      index)
+                    writer.add_scalar(f"ValidationTime/{name}", t, index)
                 prof.step()
 
-        logger.info("Validation Time taken: {:.2f}s".format(time.time() - start))
+        logger.info("Validation Time taken: {:.2f}s".format(time.time() -
+                                                            start))
         logger.info("----------------------------------------------")
         logger.info(f'Epoch [{epoch + 1}/{num_epochs}], '
                     f'Train Loss: {train_loss:.4f}, '
@@ -217,7 +223,8 @@ def main(config: str, use_torch_compile: bool):
     prof.stop()
     writer.flush()
 
-    logger.info("Total Time taken: {:.2f}s".format(time.time() - start_time_all))
+    logger.info("Total Time taken: {:.2f}s".format(time.time() -
+                                                   start_time_all))
 
 
 if __name__ == '__main__':
